@@ -1,0 +1,4 @@
+data:
+  bbox_training_annotations: ./data/train_bbox_annotations.json
+  segment_training_annotations: ./data/train_segmentation_annotations.json
+
