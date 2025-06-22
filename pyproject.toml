@@ -1,0 +1,11 @@
+[project]
+name = "solafunehackathon"
+version = "0.1.0"
+description = "Solafune Hackathon Project - Vacant Plot Detection"
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = []
+authors = [
+    { name = "Aum Rajadnye", email = "" },
+    { name = "Aaryansh Sahay", email = "" }
+    ]
