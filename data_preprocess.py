@@ -22,11 +22,11 @@ def main():
     segment_annotations = config['data']['segment_training_annotations']
 
     if args.labeltype == 'coco':
-        create_txt_files_coco_format(bbox_annotations, 'data/labels/bbox_annotations.json')
-        create_txt_files_coco_format(segment_annotations, 'data/labels/segment_annotations.json')
+        create_txt_files_coco_format(bbox_annotations, 'data/labels/')
+        create_txt_files_coco_format(segment_annotations, 'data/labels/')
     if args.labeltype == 'yolo':
-        create_txt_files(bbox_annotations, 'data/labels/bbox_annotations.txt')
-        create_txt_files(segment_annotations, 'data/labels/segment_annotations.txt')
+        create_txt_files(bbox_annotations, 'data/labels/')
+        create_txt_files(segment_annotations, 'data/labels/')
 
     
     split_dataset(config['data']['bbox_train'], 'data/labels/bbox_annotations.json', config_path="config.yaml")
