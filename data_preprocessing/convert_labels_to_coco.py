@@ -65,7 +65,6 @@ def create_txt_files(input_json_path, output_directory, logger=None):
     # Process each image
     for item in image_entries:
         base_filename = os.path.splitext(item["file_name"])[0]
-        txt_filepath = os.path.join(output_directory, f"{base_filename}.txt")
 
         width = item.get("width")
         height = item.get("height")
@@ -73,6 +72,7 @@ def create_txt_files(input_json_path, output_directory, logger=None):
 
         # If annotations is empty, create an empty file
         if not annotations:
+            txt_filepath = os.path.join(output_directory, f"{base_filename}.txt")
             with open(txt_filepath, "w") as f:
                 f.write("")
             logger.info(f"Created empty file for {item['file_name']}")
@@ -97,7 +97,8 @@ def create_txt_files(input_json_path, output_directory, logger=None):
                 center_y = (y + h / 2) / height
                 norm_w = w / width
                 norm_h = h / height
-                
+
+                txt_filepath = os.path.join(output_directory, f"{base_filename}_bbox.txt")
                 lines.append(f"{class_id} {center_x:.6f} {center_y:.6f} {norm_w:.6f} {norm_h:.6f}")
 
             elif "segmentation" in annotation:
@@ -108,6 +109,7 @@ def create_txt_files(input_json_path, output_directory, logger=None):
                     y = points[i + 1] / height
                     norm_points.append(f"{x:.6f} {y:.6f}")
                 
+                txt_filepath = os.path.join(output_directory, f"{base_filename}_segmentation.txt")
                 lines.extend(f"{class_id} {point}" for point in norm_points)
 
         # Save YOLO txt file
@@ -116,70 +118,6 @@ def create_txt_files(input_json_path, output_directory, logger=None):
 
     logger.info(f"Created {len(image_entries)} .txt files in: {output_directory}")
     return category_to_id
-
-def create_txt_files(input_json_path, output_directory):
-    """
-    Create YOLO-format .txt files from a custom JSON format containing image annotations.
-
-    Args:
-        input_json_path (str): Path to the input JSON file.
-        output_directory (str): Directory to save the .txt label files.
-    """
-    os.makedirs(output_directory, exist_ok=True)
-
-    # Load the JSON
-    with open(input_json_path, 'r') as f:
-        input_data = json.load(f)
-
-    # Get list of images
-    image_entries = input_data.get("images", [])
-    if not isinstance(image_entries, list):
-        raise ValueError("'images' should be a list in the JSON file.")
-
-    # Gather unique class names
-    categories = set()
-    for item in image_entries:
-        for annotation in item.get("annotations", []):
-            if isinstance(annotation, dict) and "class" in annotation:
-                categories.add(annotation["class"])
-
-    # Create a class-to-ID mapping
-    category_to_id = {category: idx for idx, category in enumerate(sorted(categories))}
-    print(f"Category mapping: {category_to_id}")
-
-    # Process each image
-    for item in image_entries:
-        base_filename = os.path.splitext(item["file_name"])[0]
-        txt_filepath = os.path.join(output_directory, f"{base_filename}.txt")
-
-        width = item.get("width")
-        height = item.get("height")
-        annotations = item.get("annotations", [])
-
-        lines = []
-        for annotation in annotations:
-            if not isinstance(annotation, dict):
-                continue
-            if "bbox" not in annotation or "class" not in annotation:
-                print(f"⚠️ Skipping annotation (missing 'bbox' or 'class') in {item['file_name']}")
-                continue
-
-            x, y, w, h = annotation["bbox"]
-            center_x = (x + w / 2) / width
-            center_y = (y + h / 2) / height
-            norm_w = w / width
-            norm_h = h / height
-
-            class_id = category_to_id[annotation["class"]]
-            lines.append(f"{class_id} {center_x:.6f} {center_y:.6f} {norm_w:.6f} {norm_h:.6f}")
-
-        # Save YOLO txt file
-        with open(txt_filepath, "w") as f:
-            f.write("\n".join(lines))
-
-    print(f"✅ Created {len(image_entries)} .txt files in: {output_directory}")
-    return category_to_id
-
 
 def create_txt_files_coco_format(input_json_path, output_directory):
     """
