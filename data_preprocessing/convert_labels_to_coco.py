@@ -5,7 +5,6 @@ from datetime import datetime
 import logging
 import argparse
 
-
 #==============================================================ABOUT===========================================================
 """
 
@@ -76,28 +75,42 @@ def create_txt_files(input_json_path, output_directory, logger=None):
         if not annotations:
             with open(txt_filepath, "w") as f:
                 f.write("")
-            logger.info(f"✅ Created empty file for {item['file_name']}")
+            logger.info(f"Created empty file for {item['file_name']}")
             continue
 
         lines = []
         for annotation in annotations:
             if not isinstance(annotation, dict):
                 continue
-            if "bbox" not in annotation or "class" not in annotation:
+            if ("bbox" not in annotation and "segmentation" not in annotation) or "class" not in annotation:
                 logger.info(f"Skipping annotation (missing 'bbox' or 'class') in {item['file_name']}")
                 continue
             if height is None or width is None:
                 logger.info(f"Skipping {item['file_name']} (missing 'width' or 'height')")
                 continue
 
-            x, y, w, h = annotation["bbox"]
-            center_x = (x + w / 2) / width
-            center_y = (y + h / 2) / height
-            norm_w = w / width
-            norm_h = h / height
-
             class_id = category_to_id[annotation["class"]]
-            lines.append(f"{class_id} {center_x:.6f} {center_y:.6f} {norm_w:.6f} {norm_h:.6f}")
+            
+            if "bbox" in annotation:
+                x, y, w, h = annotation["bbox"]
+                center_x = (x + w / 2) / width
+                center_y = (y + h / 2) / height
+                norm_w = w / width
+                norm_h = h / height
+                
+                lines.append(f"{class_id} {center_x:.6f} {center_y:.6f} {norm_w:.6f} {norm_h:.6f}")
+
+            elif "segmentation" in annotation:
+                points = annotation["segmentation"]
+                norm_points = []
+                for i in range(0, len(points), 2):
+                    x = points[i] / width
+                    y = points[i + 1] / height
+                    norm_points.append(f"{x:.6f} {y:.6f}")
+                
+                lines.extend(f"{class_id} {point}" for point in norm_points)
+                
+            
 
         # Save YOLO txt file
         with open(txt_filepath, "w") as f:
