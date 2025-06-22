@@ -1,6 +1,9 @@
 import json
 import os
+import sys
 from datetime import datetime
+import logging
+import argparse
 
 #==============================================================ABOUT===========================================================
 """
@@ -28,7 +31,7 @@ from datetime import datetime
 #==============================================================ABOUT===========================================================
 
 
-def create_txt_files(input_json_path, output_directory):
+def create_txt_files(input_json_path, output_directory, logger=None):
     """
     Create YOLO-format .txt files from a custom JSON format containing image annotations.
 
@@ -36,8 +39,83 @@ def create_txt_files(input_json_path, output_directory):
         input_json_path (str): Path to the input JSON file.
         output_directory (str): Directory to save the .txt label files.
     """
-    import os
-import json
+    logger = logging.getLogger(__name__) if logger is None else logger
+    os.makedirs(output_directory, exist_ok=True)
+
+    # Load the JSON
+    with open(input_json_path, 'r') as f:
+        input_data = json.load(f)
+
+    # Get list of images
+    image_entries = input_data.get("images", [])
+    if not isinstance(image_entries, list):
+        raise ValueError("'images' should be a list in the JSON file.")
+
+    # Gather unique class names
+    categories = set()
+    for item in image_entries:
+        for annotation in item.get("annotations", []):
+            if isinstance(annotation, dict) and "class" in annotation:
+                categories.add(annotation["class"])
+
+    # Create a class-to-ID mapping
+    category_to_id = {category: idx for idx, category in enumerate(sorted(categories))}
+    logger.info(f"Category mapping: {category_to_id}")
+
+    # Process each image
+    for item in image_entries:
+        base_filename = os.path.splitext(item["file_name"])[0]
+        txt_filepath = os.path.join(output_directory, f"{base_filename}.txt")
+
+        width = item.get("width")
+        height = item.get("height")
+        annotations = item.get("annotations", [])
+
+        # If annotations is empty, create an empty file
+        if not annotations:
+            with open(txt_filepath, "w") as f:
+                f.write("")
+            logger.info(f"Created empty file for {item['file_name']}")
+            continue
+
+        lines = []
+        for annotation in annotations:
+            if not isinstance(annotation, dict):
+                continue
+            if ("bbox" not in annotation and "segmentation" not in annotation) or "class" not in annotation:
+                logger.info(f"Skipping annotation (missing 'bbox', 'segmentation' or 'class') in {item['file_name']}")
+                continue
+            if height is None or width is None:
+                logger.info(f"Skipping {item['file_name']} (missing 'width' or 'height')")
+                continue
+
+            class_id = category_to_id[annotation["class"]]
+            
+            if "bbox" in annotation:
+                x, y, w, h = annotation["bbox"]
+                center_x = (x + w / 2) / width
+                center_y = (y + h / 2) / height
+                norm_w = w / width
+                norm_h = h / height
+                
+                lines.append(f"{class_id} {center_x:.6f} {center_y:.6f} {norm_w:.6f} {norm_h:.6f}")
+
+            elif "segmentation" in annotation:
+                points = annotation["segmentation"]
+                norm_points = []
+                for i in range(0, len(points), 2):
+                    x = points[i] / width
+                    y = points[i + 1] / height
+                    norm_points.append(f"{x:.6f} {y:.6f}")
+                
+                lines.extend(f"{class_id} {point}" for point in norm_points)
+
+        # Save YOLO txt file
+        with open(txt_filepath, "w") as f:
+            f.write("\n".join(lines))
+
+    logger.info(f"Created {len(image_entries)} .txt files in: {output_directory}")
+    return category_to_id
 
 def create_txt_files(input_json_path, output_directory):
     """
@@ -342,6 +420,46 @@ def convert_from_list(input_data_list, output_json_path):
     print(f"Total categories: {len(coco_data['categories'])}")
     print(f"Categories: {[cat['name'] for cat in coco_data['categories']]}")
     print(f"Output saved to: {output_json_path}")
+
+def main():
+    """
+    Main function to demonstrate usage of the above functions.
+    """
+
+    # Set up logging
+    logger = logging.getLogger(__name__)
+
+    stdout_log_formatter = logging.Formatter(
+    '%(name)s: %(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(process)d | %(message)s'
+)
+
+    stdout_log_handler = logging.StreamHandler(stream=sys.stdout)
+    stdout_log_handler.setLevel(logging.INFO)
+    stdout_log_handler.setFormatter(stdout_log_formatter)
+
+    logger.addHandler(stdout_log_handler)
+    logger.setLevel(logging.INFO)
+
+    # Parse command line arguments
+    arg_parser = argparse.ArgumentParser(description="Convert custom JSON annotations to YOLO and COCO formats.")
+    arg_parser.add_argument('--input_json', type=str, required=True, help='Path to the input JSON file.')
+    arg_parser.add_argument('--output_dir', type=str, required=True, help='Directory to save output files.')
+    arg_parser.add_argument('--output_json', type=str, help='Path to save the full COCO JSON file.')
+    args = arg_parser.parse_args()
+
+    input_json_path = args.input_json
+    output_directory = args.output_dir
+    output_json_path = args.output_json if args.output_json else os.path.join(output_directory, 'coco_annotations.json')
+    
+    # Create YOLO format .txt files
+    create_txt_files(input_json_path, output_directory, logger)
+
+    # # Create COCO format .txt files
+    # create_txt_files_coco_format(input_json_path, output_directory)
+
+    # # Convert to full COCO JSON format
+    # convert_to_coco_format(input_json_path, output_json_path)
+
 
 # Example usage:
 if __name__ == "__main__":
