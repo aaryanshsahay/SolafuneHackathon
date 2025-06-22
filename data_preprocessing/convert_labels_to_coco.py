@@ -83,7 +83,7 @@ def create_txt_files(input_json_path, output_directory, logger=None):
             if not isinstance(annotation, dict):
                 continue
             if ("bbox" not in annotation and "segmentation" not in annotation) or "class" not in annotation:
-                logger.info(f"Skipping annotation (missing 'bbox' or 'class') in {item['file_name']}")
+                logger.info(f"Skipping annotation (missing 'bbox', 'segmentation' or 'class') in {item['file_name']}")
                 continue
             if height is None or width is None:
                 logger.info(f"Skipping {item['file_name']} (missing 'width' or 'height')")
@@ -109,8 +109,6 @@ def create_txt_files(input_json_path, output_directory, logger=None):
                     norm_points.append(f"{x:.6f} {y:.6f}")
                 
                 lines.extend(f"{class_id} {point}" for point in norm_points)
-                
-            
 
         # Save YOLO txt file
         with open(txt_filepath, "w") as f:
