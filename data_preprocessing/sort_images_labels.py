@@ -3,8 +3,11 @@ import shutil
 import random
 import yaml
 from pathlib import Path
+import logging
 
-def split_dataset(image_dir, label_dir, config_path="../config.yaml"):
+def split_dataset(image_dir, label_dir, config_path="../config.yaml", logger=None):
+    # Initialize logger
+    logger = logging.getLogger(__name__) if logger is None else logger
     # Load configuration
     with open(config_path, "r") as file:
         config = yaml.safe_load(file)
@@ -20,7 +23,7 @@ def split_dataset(image_dir, label_dir, config_path="../config.yaml"):
     assert label_dir.exists(), f"Label directory {label_dir} does not exist"
 
     # Collect and shuffle image files
-    image_files = sorted([f for f in image_dir.glob("*.jpg")])
+    image_files = sorted([f for f in image_dir.glob("*.tif")])
     random.shuffle(image_files)
 
     # Split into train and val
@@ -45,7 +48,7 @@ def split_dataset(image_dir, label_dir, config_path="../config.yaml"):
         for img_path in images:
             label_path = label_dir / f"{img_path.stem}.txt"
             if not label_path.exists():
-                print(f"Warning: No label for {img_path.name}, skipping.")
+                logger.warning(f"No label for {img_path.name}, skipping.")
                 continue
 
             # Copy image and label
@@ -56,4 +59,4 @@ def split_dataset(image_dir, label_dir, config_path="../config.yaml"):
     copy_files(train_images, "train")
     copy_files(val_images, "val")
 
-    print(f"Split complete. Train: {len(train_images)} images, Val: {len(val_images)} images.")
+    logger.info(f"Split complete. Train: {len(train_images)} images, Val: {len(val_images)} images.")

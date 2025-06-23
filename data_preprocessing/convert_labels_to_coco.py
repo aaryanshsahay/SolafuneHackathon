@@ -83,10 +83,10 @@ def create_txt_files(input_json_path, output_directory, logger=None):
             if not isinstance(annotation, dict):
                 continue
             if ("bbox" not in annotation and "segmentation" not in annotation) or "class" not in annotation:
-                logger.info(f"Skipping annotation (missing 'bbox', 'segmentation' or 'class') in {item['file_name']}")
+                logger.warning(f"Skipping annotation (missing 'bbox', 'segmentation' or 'class') in {item['file_name']}")
                 continue
             if height is None or width is None:
-                logger.info(f"Skipping {item['file_name']} (missing 'width' or 'height')")
+                logger.warning(f"Skipping {item['file_name']} (missing 'width' or 'height')")
                 continue
 
             class_id = category_to_id[annotation["class"]]
@@ -97,7 +97,7 @@ def create_txt_files(input_json_path, output_directory, logger=None):
                 center_y = (y + h / 2) / height
                 norm_w = w / width
                 norm_h = h / height
-                
+
                 lines.append(f"{class_id} {center_x:.6f} {center_y:.6f} {norm_w:.6f} {norm_h:.6f}")
 
             elif "segmentation" in annotation:
@@ -117,71 +117,7 @@ def create_txt_files(input_json_path, output_directory, logger=None):
     logger.info(f"Created {len(image_entries)} .txt files in: {output_directory}")
     return category_to_id
 
-def create_txt_files(input_json_path, output_directory):
-    """
-    Create YOLO-format .txt files from a custom JSON format containing image annotations.
-
-    Args:
-        input_json_path (str): Path to the input JSON file.
-        output_directory (str): Directory to save the .txt label files.
-    """
-    os.makedirs(output_directory, exist_ok=True)
-
-    # Load the JSON
-    with open(input_json_path, 'r') as f:
-        input_data = json.load(f)
-
-    # Get list of images
-    image_entries = input_data.get("images", [])
-    if not isinstance(image_entries, list):
-        raise ValueError("'images' should be a list in the JSON file.")
-
-    # Gather unique class names
-    categories = set()
-    for item in image_entries:
-        for annotation in item.get("annotations", []):
-            if isinstance(annotation, dict) and "class" in annotation:
-                categories.add(annotation["class"])
-
-    # Create a class-to-ID mapping
-    category_to_id = {category: idx for idx, category in enumerate(sorted(categories))}
-    print(f"Category mapping: {category_to_id}")
-
-    # Process each image
-    for item in image_entries:
-        base_filename = os.path.splitext(item["file_name"])[0]
-        txt_filepath = os.path.join(output_directory, f"{base_filename}.txt")
-
-        width = item.get("width")
-        height = item.get("height")
-        annotations = item.get("annotations", [])
-
-        lines = []
-        for annotation in annotations:
-            if not isinstance(annotation, dict):
-                continue
-            if "bbox" not in annotation or "class" not in annotation:
-                print(f"⚠️ Skipping annotation (missing 'bbox' or 'class') in {item['file_name']}")
-                continue
-
-            x, y, w, h = annotation["bbox"]
-            center_x = (x + w / 2) / width
-            center_y = (y + h / 2) / height
-            norm_w = w / width
-            norm_h = h / height
-
-            class_id = category_to_id[annotation["class"]]
-            lines.append(f"{class_id} {center_x:.6f} {center_y:.6f} {norm_w:.6f} {norm_h:.6f}")
-
-        # Save YOLO txt file
-        with open(txt_filepath, "w") as f:
-            f.write("\n".join(lines))
-
-    print(f"✅ Created {len(image_entries)} .txt files in: {output_directory}")
-    return category_to_id
-
-
-def create_txt_files_coco_format(input_json_path, output_directory):
+def create_txt_files_coco_format(input_json_path, output_directory, logger=None):
     """
     Create individual .txt files for each image entry in COCO bbox format
     
@@ -189,7 +125,7 @@ def create_txt_files_coco_format(input_json_path, output_directory):
         input_json_path (str): Path to input JSON file
         output_directory (str): Directory to save .txt files
     """
-    
+    logger = logging.getLogger(__name__) if logger is None else logger
     # Create output directory if it doesn't exist
     os.makedirs(output_directory, exist_ok=True)
     
@@ -207,7 +143,7 @@ def create_txt_files_coco_format(input_json_path, output_directory):
     for idx, category in enumerate(sorted(categories)):
         category_to_id[category] = idx
     
-    print(f"Category mapping: {category_to_id}")
+    logger.info(f"Category mapping: {category_to_id}")
     
     # Process each image
     for item in input_data:
@@ -232,11 +168,15 @@ def create_txt_files_coco_format(input_json_path, output_directory):
         with open(txt_filepath, 'w') as f:
             f.write('\n'.join(lines))
     
-    print(f"Created {len(input_data)} .txt files in directory: {output_directory}")
-    print(f"Format: COCO format (class_id x y width height) - absolute coordinates")
+    logger.info(f"Created {len(input_data)} .txt files in directory: {output_directory}")
+    logger.info(f"Format: COCO format (class_id x y width height) - absolute coordinates")
     
     return category_to_id
-def convert_to_coco_format(input_json_path, output_json_path):
+
+
+def convert_to_coco_format(input_json_path, output_json_path, logger=None):
+
+    logger = logging.getLogger(__name__) if logger is None else logger
     
     # Load the input JSON
     with open(input_json_path, 'r') as f:
@@ -320,7 +260,7 @@ def convert_to_coco_format(input_json_path, output_json_path):
     with open(output_json_path, 'w') as f:
         json.dump(coco_data, f, indent=2)
     
-    print(f"Conversion completed!")
+    (f"Conversion completed!")
     print(f"Total images: {len(coco_data['images'])}")
     print(f"Total annotations: {len(coco_data['annotations'])}")
     print(f"Total categories: {len(coco_data['categories'])}")
@@ -418,48 +358,8 @@ def convert_from_list(input_data_list, output_json_path):
     print(f"Total images: {len(coco_data['images'])}")
     print(f"Total annotations: {len(coco_data['annotations'])}")
     print(f"Total categories: {len(coco_data['categories'])}")
-    print(f"Categories: {[cat['name'] for cat in coco_data['categories']]}")
+    print(f"Categories: {[cat['name'] for cat in coco_data['categories']]}") #noqa
     print(f"Output saved to: {output_json_path}")
-
-def main():
-    """
-    Main function to demonstrate usage of the above functions.
-    """
-
-    # Set up logging
-    logger = logging.getLogger(__name__)
-
-    stdout_log_formatter = logging.Formatter(
-    '%(name)s: %(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(process)d | %(message)s'
-)
-
-    stdout_log_handler = logging.StreamHandler(stream=sys.stdout)
-    stdout_log_handler.setLevel(logging.INFO)
-    stdout_log_handler.setFormatter(stdout_log_formatter)
-
-    logger.addHandler(stdout_log_handler)
-    logger.setLevel(logging.INFO)
-
-    # Parse command line arguments
-    arg_parser = argparse.ArgumentParser(description="Convert custom JSON annotations to YOLO and COCO formats.")
-    arg_parser.add_argument('--input_json', type=str, required=True, help='Path to the input JSON file.')
-    arg_parser.add_argument('--output_dir', type=str, required=True, help='Directory to save output files.')
-    arg_parser.add_argument('--output_json', type=str, help='Path to save the full COCO JSON file.')
-    args = arg_parser.parse_args()
-
-    input_json_path = args.input_json
-    output_directory = args.output_dir
-    output_json_path = args.output_json if args.output_json else os.path.join(output_directory, 'coco_annotations.json')
-    
-    # Create YOLO format .txt files
-    create_txt_files(input_json_path, output_directory, logger)
-
-    # # Create COCO format .txt files
-    # create_txt_files_coco_format(input_json_path, output_directory)
-
-    # # Convert to full COCO JSON format
-    # convert_to_coco_format(input_json_path, output_json_path)
-
 
 # Example usage:
 if __name__ == "__main__":
