@@ -12,7 +12,7 @@ def split_dataset(image_dir, label_dir, config_path="../config.yaml", logger=Non
     with open(config_path, "r") as file:
         config = yaml.safe_load(file)
     
-    split_ratio = config['prelim']['train_validation_split'] # pyrefly: ignore
+    split_ratio = config['prelim']['train_validation_split']
     if not (0 < split_ratio < 1):
         raise ValueError("train_val_split must be between 0 and 1")
 
