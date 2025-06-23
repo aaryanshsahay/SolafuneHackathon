@@ -3,6 +3,7 @@ data:
   segment_training_annotations: ./data/train_segmentation_annotations.json
   bbox_train: ./data/train_bbox_images
   segmentation_train: ./data/train_segmentation_images
+  labeltype: yolo
 
 
 prelim:
